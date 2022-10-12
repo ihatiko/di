@@ -66,7 +66,7 @@ func ProvideInterface[T any](constructor any) {
 		typeB := constructorValueType.Type().Out(0).Elem()
 		//TODO this function does not work with 'func(t *Test) Test()' where Test is pointer
 		if !typeB.Implements(typeA) {
-			panic(fmt.Sprintf("Type A doesnt impletemnt type B %s %s", typeA.String(), typeB.String()))
+			panic(fmt.Sprintf("Type A doesnt implement type B %s %s", typeA.String(), typeB.String()))
 		}
 	}
 	baseInject(constructorType, constructorValueType, key)
