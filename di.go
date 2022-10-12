@@ -5,11 +5,16 @@ import (
 	"reflect"
 )
 
+//TODO Scope, Transient, Singleton, LazyLoading
 type Registry struct {
 	Injections map[string]reflect.Value
 }
 
 var registry = &Registry{Injections: map[string]reflect.Value{}}
+
+func GetRegistry() *Registry {
+	return registry
+}
 
 func Provide(constructors ...interface{}) {
 	for _, constructor := range constructors {
@@ -59,6 +64,7 @@ func ProvideInterface[T any](constructor any) {
 	}
 	if constructorType.Kind() == reflect.Func {
 		typeB := constructorValueType.Type().Out(0).Elem()
+		//TODO this function does not work with 'func(t *Test) Test()' where Test is pointer
 		if !typeB.Implements(typeA) {
 			panic(fmt.Sprintf("Type A doesnt impletemnt type B %s %s", typeA.String(), typeB.String()))
 		}
