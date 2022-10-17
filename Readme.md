@@ -8,6 +8,7 @@ Golang [1.18+](https://go.dev/blog/go1.18)
 * Nothing string keys 
 * Automatic create objects with dependencies
 * Lazy injections
+* You can use Concrete objects or Function Constructor for inject
 
 ### Good for:
 
