@@ -30,10 +30,10 @@ go get github.com/ihatiko/di
 ```go
 import "get github.com/ihatiko/di"
 
-ProvideInterface[some_contracts.Service](some_injection.ConcreteService{})
-ProvideInterface[some_contracts.Handler](some_injection.NewConcreteHandler)
+di.ProvideInterface[some_contracts.Service](some_injection.ConcreteService{})
+di.ProvideInterface[some_contracts.Handler](some_injection.NewConcreteHandler)
 
-Invoke(func(h some_contracts.Handler, s some_contracts.Service) {
+di.Invoke(func(h some_contracts.Handler, s some_contracts.Service) {
     h.HandlerTest()
     s.ServiceTest()
 })
@@ -42,8 +42,8 @@ Invoke(func(h some_contracts.Handler, s some_contracts.Service) {
 ```go
 import "get github.com/ihatiko/di"
 
-cfg := 
-Provide(
+cfg :=
+di.Provide(
     &some_injection.ConfigRepository{},
     some_injection.NewConcreteRepository,
 )
