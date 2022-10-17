@@ -49,3 +49,5 @@ di.Provide(
 )
 data := GetInject[*some_injection.ConcreteRepository]()
 ```
+
+#### [Some examples in tests](https://github.com/ihatiko/di/blob/main/di_test.go)
