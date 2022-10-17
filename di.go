@@ -1,19 +1,40 @@
 package di
 
 import (
+	"errors"
 	"fmt"
 	"reflect"
 )
 
-//TODO Scope, Transient, Singleton, LazyLoading
+//TODO Scope, Transient, Singleton
 type Registry struct {
-	Injections map[string]reflect.Value
+	Scope        map[string]reflect.Value
+	Dependencies map[string]Dependency
 }
 
-var registry = &Registry{Injections: map[string]reflect.Value{}}
+type Dependency struct {
+	Constructor  interface{}
+	Type         reflect.Type
+	Dependencies []string
+}
+
+var registry = &Registry{
+	Scope:        map[string]reflect.Value{},
+	Dependencies: map[string]Dependency{},
+}
 
 func GetRegistry() *Registry {
 	return registry
+}
+
+var cyclomaticError = errors.New("cyclomatic dependency")
+var emptyInjectionError = errors.New("does not find injection")
+
+func Clear() {
+	registry = &Registry{
+		Scope:        map[string]reflect.Value{},
+		Dependencies: map[string]Dependency{},
+	}
 }
 
 func Provide(constructors ...interface{}) {
@@ -24,18 +45,35 @@ func Provide(constructors ...interface{}) {
 		if constructorType.Kind() == reflect.Pointer {
 			pkgPath = constructorType.Elem().PkgPath()
 		}
-		key := ""
-		if constructorType.Kind() == reflect.Func {
-			outType := constructorType.Out(0)
-			if outType.Kind() == reflect.Pointer {
-				pkgPath = outType.Elem().PkgPath()
-			}
-			key = fmt.Sprintf("%s_%s", pkgPath, outType.String())
-		} else {
-			key = fmt.Sprintf("%s_%s", pkgPath, constructorType.String())
-		}
+		inject(constructorType, pkgPath, constructor, constructorValueType)
+	}
+}
 
-		baseInject(constructorType, constructorValueType, key)
+func inject(constructorType reflect.Type, pkgPath string, constructor interface{}, constructorValueType reflect.Value) {
+	var inParams []string
+	key := ""
+	if constructorType.Kind() == reflect.Func {
+		outType := constructorType.Out(0)
+		if outType.Kind() == reflect.Pointer {
+			pkgPath = outType.Elem().PkgPath()
+		}
+		for i := 0; i < constructorType.NumIn(); i++ {
+			inParam := constructorType.In(i)
+			inParamKey := inParam.PkgPath()
+			if inParam.Kind() == reflect.Pointer {
+				inParamKey = inParam.Elem().PkgPath()
+			}
+			inParams = append(inParams, fmt.Sprintf("%s/%s", inParamKey, inParam.String()))
+		}
+		key = fmt.Sprintf("%s/%s", pkgPath, outType.String())
+		registry.Dependencies[key] = Dependency{
+			Type:         constructorType,
+			Dependencies: inParams,
+			Constructor:  constructor,
+		}
+	} else {
+		key = fmt.Sprintf("%s/%s", pkgPath, constructorType.String())
+		registry.Scope[key] = constructorValueType
 	}
 }
 
@@ -45,11 +83,55 @@ func GetInject[T any]() T {
 	if typeA.Kind() == reflect.Pointer {
 		pkgPath = typeA.Elem().PkgPath()
 	}
-	key := fmt.Sprintf("%s_%s", pkgPath, typeA.String())
-	if data, ok := registry.Injections[key]; ok {
+	key := fmt.Sprintf("%s/%s", pkgPath, typeA.String())
+	if data, ok := registry.Scope[key]; ok {
 		return data.Interface().(T)
-	} else {
+	}
+	data, err := buildInject(key)
+	if errors.Is(err, cyclomaticError) {
+		panic(err)
+	}
+	if errors.Is(err, emptyInjectionError) {
 		panic(fmt.Sprintf("Injection with key %s does not exist", key))
+	}
+	return data.Interface().(T)
+}
+
+func findKey(key string, data []string) bool {
+	result := false
+	for _, item := range data {
+		if item == key {
+			return true
+		}
+	}
+	return result
+}
+func buildInject(key string, paths ...string) (reflect.Value, error) {
+	if findKey(key, paths) {
+		return reflect.ValueOf(nil), cyclomaticError
+	}
+	if data, ok := registry.Dependencies[key]; ok {
+		var injectionParams []reflect.Value
+		for _, dpd := range data.Dependencies {
+			if internalData, scopeOk := registry.Scope[dpd]; scopeOk {
+				injectionParams = append(injectionParams, internalData)
+				continue
+			}
+			paths = append(paths, key)
+			inject, err := buildInject(dpd, paths...)
+			if err != nil {
+				return reflect.ValueOf(nil), err
+			}
+			injectionParams = append(injectionParams, inject)
+		}
+		valueType := reflect.ValueOf(data.Constructor)
+		result := valueType.Call(injectionParams)
+		if len(result) == 0 {
+			panic("Constructor does not return injection")
+		}
+		return result[0], nil
+	} else {
+		return reflect.ValueOf(nil), emptyInjectionError
 	}
 }
 
@@ -57,47 +139,39 @@ func ProvideInterface[T any](constructor any) {
 	constructorValueType := reflect.ValueOf(constructor)
 	constructorType := reflect.TypeOf(constructor)
 	typeA := reflect.TypeOf((*T)(nil)).Elem()
-	key := fmt.Sprintf("%s_%s", typeA.PkgPath(), typeA.String())
 
 	if typeA.Kind() != reflect.Interface {
 		panic("Type T does not interface")
 	}
+	key := fmt.Sprintf("%s/%s", typeA.PkgPath(), typeA.String())
 	if constructorType.Kind() == reflect.Func {
-		typeB := constructorValueType.Type().Out(0).Elem()
+		typeB := constructorValueType.Type().Out(0)
+		if typeB.Kind() == reflect.Pointer {
+			typeB = typeB.Elem()
+		}
 		//TODO this function does not work with 'func(t *Test) Test()' where Test is pointer
 		if !typeB.Implements(typeA) {
 			panic(fmt.Sprintf("Type A doesnt implement type B %s %s", typeA.String(), typeB.String()))
 		}
 	}
-	baseInject(constructorType, constructorValueType, key)
-}
-
-func baseInject(constructorType reflect.Type, constructorValueType reflect.Value, key string) {
-	var injection reflect.Value
+	var inParams []string
 	if constructorType.Kind() == reflect.Func {
-		var buffer []reflect.Value
 		for i := 0; i < constructorType.NumIn(); i++ {
 			inParam := constructorType.In(i)
-			pkgPath := inParam.PkgPath()
+			inParamKey := inParam.PkgPath()
 			if inParam.Kind() == reflect.Pointer {
-				pkgPath = inParam.Elem().PkgPath()
+				inParamKey = inParam.Elem().PkgPath()
 			}
-			paramKey := fmt.Sprintf("%s_%s", pkgPath, constructorType.In(i).String())
-			if inj, ok := registry.Injections[paramKey]; ok {
-				buffer = append(buffer, inj)
-			} else {
-				panic(fmt.Sprintf("Does not exist %s dependencies", paramKey))
-			}
+			inParams = append(inParams, fmt.Sprintf("%s/%s", inParamKey, inParam.String()))
 		}
-		data := constructorValueType.Call(buffer)
-		if len(data) == 0 {
-			panic("Constructor does not return injection")
+		registry.Dependencies[key] = Dependency{
+			Type:         constructorType,
+			Dependencies: inParams,
+			Constructor:  constructor,
 		}
-		injection = data[0]
 	} else {
-		injection = constructorValueType
+		registry.Scope[key] = constructorValueType
 	}
-	registry.Injections[key] = injection
 }
 
 func Invoke(fns ...interface{}) {
@@ -107,12 +181,19 @@ func Invoke(fns ...interface{}) {
 		var buffer []reflect.Value
 		for i := 0; i < constructorType.NumIn(); i++ {
 			fnParam := reflect.TypeOf(fn).In(i)
-			key := fmt.Sprintf("%s_%s", fnParam.PkgPath(), fnParam.String())
-			if injection, ok := registry.Injections[key]; ok {
-				buffer = append(buffer, injection)
-			} else {
-				panic(fmt.Sprintf("Injection with key %s does not exists", key))
+			key := fmt.Sprintf("%s/%s", fnParam.PkgPath(), fnParam.String())
+			if inj, ok := registry.Scope[key]; ok {
+				buffer = append(buffer, inj)
+				continue
 			}
+			data, err := buildInject(key)
+			if errors.Is(err, cyclomaticError) {
+				panic(err)
+			}
+			if errors.Is(err, emptyInjectionError) {
+				panic(fmt.Sprintf("Injection with key %s does not exist", key))
+			}
+			buffer = append(buffer, data)
 		}
 		constructorValueType.Call(buffer)
 	}

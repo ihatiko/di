@@ -2,10 +2,6 @@ package some_injection
 
 import "fmt"
 
-type Repository interface {
-	ServiceTest()
-}
-
 type ConfigRepository struct {
 }
 
