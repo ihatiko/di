@@ -26,10 +26,16 @@ go get github.com/ihatiko/di
 ```
 
 ## Basic Usage
-
-### Provide interface
+### Test Data 
 ```go
-import "get github.com/ihatiko/di"
+
+type Service interface {
+	ServiceTest()
+}
+
+type Handler interface {
+	HandlerTest()
+}
 
 type ConcreteHandler struct {
 	Service some_contracts.Service
@@ -54,6 +60,10 @@ func NewConcreteService(repository some_contracts.Repository) *ConcreteService {
 func (s ConcreteService) ServiceTest() {
 	fmt.Println("Hello world ServiceTest")
 }
+```
+### Provide interface
+```go
+import "get github.com/ihatiko/di"
 
 di.ProvideInterface[some_contracts.Service](some_injection.ConcreteService{})
 di.ProvideInterface[some_contracts.Handler](some_injection.NewConcreteHandler)
