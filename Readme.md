@@ -50,11 +50,11 @@ func (h ConcreteHandler) HandlerTest() {
 }
 
 type ConcreteService struct {
-	Repository some_contracts.Repository
+
 }
 
-func NewConcreteService(repository some_contracts.Repository) *ConcreteService {
-	return &ConcreteService{Repository: repository}
+func NewConcreteService() *ConcreteService {
+	return &ConcreteService{}
 }
 
 func (s ConcreteService) ServiceTest() {
