@@ -31,6 +31,30 @@ go get github.com/ihatiko/di
 ```go
 import "get github.com/ihatiko/di"
 
+type ConcreteHandler struct {
+	Service some_contracts.Service
+}
+
+func NewConcreteHandler(service some_contracts.Service) *ConcreteHandler {
+	return &ConcreteHandler{Service: service}
+}
+
+func (h ConcreteHandler) HandlerTest() {
+	fmt.Println("Hello world HandlerTest")
+}
+
+type ConcreteService struct {
+	Repository some_contracts.Repository
+}
+
+func NewConcreteService(repository some_contracts.Repository) *ConcreteService {
+	return &ConcreteService{Repository: repository}
+}
+
+func (s ConcreteService) ServiceTest() {
+	fmt.Println("Hello world ServiceTest")
+}
+
 di.ProvideInterface[some_contracts.Service](some_injection.ConcreteService{})
 di.ProvideInterface[some_contracts.Handler](some_injection.NewConcreteHandler)
 
