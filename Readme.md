@@ -63,7 +63,7 @@ func (s ConcreteService) ServiceTest() {
 ```
 ### Provide interface
 ```go
-import "get github.com/ihatiko/di"
+import "github.com/ihatiko/di"
 
 di.ProvideInterface[some_contracts.Service](some_injection.ConcreteService{})
 di.ProvideInterface[some_contracts.Handler](some_injection.NewConcreteHandler)
