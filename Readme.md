@@ -75,7 +75,7 @@ di.Invoke(func(h some_contracts.Handler, s some_contracts.Service) {
 ```
 
 ```go
-import "get github.com/ihatiko/di"
+import "github.com/ihatiko/di"
 
 cfg :=
 di.Provide(
