@@ -45,6 +45,9 @@ func Provide(constructors ...interface{}) {
 		if constructorType.Kind() == reflect.Pointer {
 			pkgPath = constructorType.Elem().PkgPath()
 		}
+		if constructorType.Kind() == reflect.Interface {
+			pkgPath = constructorType.PkgPath()
+		}
 		inject(constructorType, pkgPath, constructor, constructorValueType)
 	}
 }
@@ -126,7 +129,7 @@ func buildInject(key string, paths ...string) (reflect.Value, error) {
 			paths = append(paths, key)
 			inject, err := buildInject(dpd, paths...)
 			if err != nil {
-				return reflect.ValueOf(nil), fmt.Errorf("...%w", err)
+				return reflect.ValueOf(nil), fmt.Errorf("[%w]", err)
 			}
 			injectionParams = append(injectionParams, inject)
 		}
@@ -197,7 +200,7 @@ func Invoke(fns ...interface{}) {
 				panic(err)
 			}
 			if errors.Is(err, emptyInjectionError) {
-				panic(fmt.Sprintf("Injection with key %s does not exist", key))
+				panic(fmt.Errorf("injection with key %s does not exist stackTrace %w", key, err))
 			}
 			buffer = append(buffer, data)
 		}
