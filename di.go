@@ -140,7 +140,7 @@ func buildInject(key string, paths ...string) (reflect.Value, error) {
 		}
 		return result[0], nil
 	} else {
-		return reflect.ValueOf(nil), emptyInjectionError
+		return reflect.ValueOf(nil), fmt.Errorf("[key: %s %w]", key, emptyInjectionError)
 	}
 }
 
