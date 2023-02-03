@@ -71,3 +71,11 @@ func TestProvide2Deep(t *testing.T) {
 		assert.NotEqual(t, t4, nil)
 	})
 }
+
+func TestProvideInterface(t *testing.T) {
+	Provide(
+		some_injection.NewAbstractService,
+	)
+	data := GetInject[some_contracts.Service]()
+	assert.NotNil(t, data)
+}

@@ -13,6 +13,10 @@ func NewConcreteService(repository some_contracts.Repository) *ConcreteService {
 	return &ConcreteService{Repository: repository}
 }
 
+func NewAbstractService() some_contracts.Service {
+	return &ConcreteService{}
+}
+
 func (s ConcreteService) ServiceTest() {
 	fmt.Println("Hello world ServiceTest")
 }

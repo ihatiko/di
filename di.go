@@ -6,7 +6,7 @@ import (
 	"reflect"
 )
 
-//TODO Scope, Transient, Singleton
+// TODO Scope, Transient, Singleton
 type Registry struct {
 	Scope        map[string]reflect.Value
 	Dependencies map[string]Dependency
@@ -57,6 +57,9 @@ func inject(constructorType reflect.Type, pkgPath string, constructor interface{
 		if outType.Kind() == reflect.Pointer {
 			pkgPath = outType.Elem().PkgPath()
 		}
+		if outType.Kind() == reflect.Interface {
+			pkgPath = outType.PkgPath()
+		}
 		for i := 0; i < constructorType.NumIn(); i++ {
 			inParam := constructorType.In(i)
 			inParamKey := inParam.PkgPath()
@@ -82,6 +85,9 @@ func GetInject[T any]() T {
 	pkgPath := typeA.PkgPath()
 	if typeA.Kind() == reflect.Pointer {
 		pkgPath = typeA.Elem().PkgPath()
+	}
+	if typeA.Kind() == reflect.Interface {
+		pkgPath = typeA.PkgPath()
 	}
 	key := fmt.Sprintf("%s/%s", pkgPath, typeA.String())
 	if data, ok := registry.Scope[key]; ok {
@@ -120,7 +126,7 @@ func buildInject(key string, paths ...string) (reflect.Value, error) {
 			paths = append(paths, key)
 			inject, err := buildInject(dpd, paths...)
 			if err != nil {
-				return reflect.ValueOf(nil), err
+				return reflect.ValueOf(nil), fmt.Errorf("...%w", err)
 			}
 			injectionParams = append(injectionParams, inject)
 		}
