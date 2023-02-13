@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"strings"
 )
 
 // TODO Scope, Transient, Singleton
@@ -94,7 +95,8 @@ func GetInject[T any]() T {
 	}
 	key := fmt.Sprintf("%s/%s", pkgPath, typeA.String())
 	if data, ok := registry.Scope[key]; ok {
-		return data.Interface().(T)
+		result := data.Interface().(T)
+		return result
 	}
 	data, err := buildInject(key)
 	if errors.Is(err, cyclomaticError) {
@@ -143,6 +145,96 @@ func buildInject(key string, paths ...string) (reflect.Value, error) {
 		return reflect.ValueOf(nil), fmt.Errorf("[key: %s %w]", key, emptyInjectionError)
 	}
 }
+func comparing(a, b string, deconstructTypeA map[string]string, deconstructTypeB map[string]string) (bool, error) {
+	for k, v := range deconstructTypeA {
+		result, ok := deconstructTypeB[k]
+		if ok {
+			if result == v {
+				continue
+			}
+		}
+		message := checkNotImplementedComponentsErrorMessage(deconstructTypeA, deconstructTypeB)
+		errResult := fmt.Sprintf(
+			"Not implement \n %s -> %s \n %s",
+			b, a, message,
+		)
+		return false, errors.New(errResult)
+	}
+	return true, nil
+}
+
+func checkNotImplementedComponentsErrorMessage(deconstructTypeA map[string]string, deconstructTypeB map[string]string) string {
+	message := strings.Builder{}
+	for k, v := range deconstructTypeA {
+		data, ok := deconstructTypeB[k]
+		if ok {
+			if data != v {
+				message.WriteString(fmt.Sprintf("%s(%s) -> %s(%s) \n", k, data, k, v))
+			}
+			continue
+		}
+		message.WriteString(fmt.Sprintf("%s(%s) not implement \n", k, v))
+	}
+	return message.String()
+}
+
+func extractInterfaceParams(method reflect.Method) string {
+	var data []string
+	for i := 0; i < method.Type.NumIn(); i++ {
+		candidateInheritParams := method.Type.In(i)
+		params := candidateInheritParams.Name()
+		if candidateInheritParams.PkgPath() != "" {
+			params = fmt.Sprintf("%s.%s", candidateInheritParams.PkgPath(), candidateInheritParams.Name())
+		}
+		data = append(data, params)
+	}
+	return strings.Join(data, ",")
+}
+func extractNotInheritParams(method reflect.Method, paramsCount int) string {
+	var data []string
+	for i := 1; i < paramsCount; i++ {
+		candidateInheritParams := method.Func.Type().In(i)
+		params := candidateInheritParams.Name()
+		if candidateInheritParams.PkgPath() != "" {
+			params = fmt.Sprintf("%s.%s", candidateInheritParams.PkgPath(), candidateInheritParams.Name())
+		}
+		data = append(data, params)
+	}
+	return strings.Join(data, ",")
+}
+func CustomImplement(typeA, typeB reflect.Type) (bool, error) {
+	typeBCompareMap := getContractSignature(typeB)
+	typeACompareMap := getContractSignature(typeA)
+	return comparing(
+		typeA.Name(),
+		typeB.Name(),
+		typeACompareMap,
+		typeBCompareMap,
+	)
+}
+
+func getContractSignature(typeA reflect.Type) map[string]string {
+	typeBCompareMap := map[string]string{}
+	for i := 0; i < typeA.NumMethod(); i++ {
+		typeAMethod := typeA.Method(i)
+		if typeA.Kind() == reflect.Interface {
+			params := extractInterfaceParams(typeAMethod)
+			typeBCompareMap[typeAMethod.Name] = params
+			continue
+		}
+		inValuesCount := typeAMethod.Func.Type().NumIn()
+		if inValuesCount == 0 {
+			continue
+		}
+		candidateInheritParams := typeAMethod.Func.Type().In(0)
+		if candidateInheritParams.Name() == typeA.Name() {
+			params := extractNotInheritParams(typeAMethod, inValuesCount)
+			typeBCompareMap[typeAMethod.Name] = params
+		}
+	}
+
+	return typeBCompareMap
+}
 
 func ProvideInterface[T any](constructor any) {
 	constructorValueType := reflect.ValueOf(constructor)
@@ -159,8 +251,8 @@ func ProvideInterface[T any](constructor any) {
 			typeB = typeB.Elem()
 		}
 		//TODO this function does not work with 'func(t *Test) Test()' where Test is pointer
-		if !typeB.Implements(typeA) {
-			panic(fmt.Sprintf("Type A doesnt implement type B %s %s", typeA.String(), typeB.String()))
+		if result, err := CustomImplement(typeA, typeB); !result {
+			panic(err)
 		}
 	}
 	var inParams []string

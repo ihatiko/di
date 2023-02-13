@@ -9,5 +9,5 @@ type Repository interface {
 }
 
 type Handler interface {
-	HandlerTest()
+	HandlerTest(test string)
 }

@@ -1,6 +1,7 @@
 package di
 
 import (
+	no_inherit "github.com/ihatiko/di/test-data/no-inherit"
 	some_contracts "github.com/ihatiko/di/test-data/some-contracts"
 	some_data "github.com/ihatiko/di/test-data/some-data"
 	some_injection "github.com/ihatiko/di/test-data/some-injection"
@@ -14,7 +15,7 @@ func TestInvoke__ProvideInterface(t *testing.T) {
 	ProvideInterface[some_contracts.Handler](some_injection.NewConcreteHandler)
 
 	Invoke(func(h some_contracts.Handler, s some_contracts.Service) {
-		h.HandlerTest()
+		h.HandlerTest("TEST")
 		s.ServiceTest()
 	})
 }
@@ -77,5 +78,16 @@ func TestProvideInterface(t *testing.T) {
 		some_injection.NewAbstractService,
 	)
 	data := GetInject[some_contracts.Service]()
+	assert.NotNil(t, data)
+}
+func TestProvideInterfaceNotInheritError(t *testing.T) {
+	defer func() {
+		if r := recover(); r != nil {
+			err := r.(error)
+			assert.Error(t, err)
+		}
+	}()
+	ProvideInterface[no_inherit.SomeInterfaceCase1](no_inherit.NewSomeStructCase1)
+	data := GetInject[no_inherit.SomeInterfaceCase1]()
 	assert.NotNil(t, data)
 }

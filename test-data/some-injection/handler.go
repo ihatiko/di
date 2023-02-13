@@ -13,6 +13,6 @@ func NewConcreteHandler(service some_contracts.Service) *ConcreteHandler {
 	return &ConcreteHandler{Service: service}
 }
 
-func (h ConcreteHandler) HandlerTest() {
+func (h ConcreteHandler) HandlerTest(test string) {
 	fmt.Println("Hello world HandlerTest")
 }
