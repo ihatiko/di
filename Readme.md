@@ -1,7 +1,7 @@
 # DI
 A reflection generic based [Go](http://golang.org) [Dependency injection](https://en.wikipedia.org/wiki/Dependency_injection).
 ### Require
-Golang [1.18+](https://go.dev/blog/go1.18)
+Golang [1.19+](https://go.dev/blog/go1.19)
 
 ### Reason for using
 * Simplify code
