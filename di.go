@@ -235,6 +235,13 @@ func getContractSignature(typeA reflect.Type) map[string]string {
 
 	return typeBCompareMap
 }
+func Register(constructors ...interface{}) {
+	Provide(constructors)
+}
+
+func RegisterInterface[T any](constructor any) {
+	ProvideInterface[T](constructor)
+}
 
 func ProvideInterface[T any](constructor any) {
 	constructorValueType := reflect.ValueOf(constructor)
@@ -274,7 +281,9 @@ func ProvideInterface[T any](constructor any) {
 		registry.Scope[key] = constructorValueType
 	}
 }
-
+func Inject(fns ...interface{}) {
+	Invoke(fns)
+}
 func Invoke(fns ...interface{}) {
 	for _, fn := range fns {
 		constructorValueType := reflect.ValueOf(fn)
